@@ -48,7 +48,7 @@ string seckeyAgree(RequestMsg *msg)
     cout << "文件写入成功" << endl;
 
     // 1 检验签名
-    Cryptographic rsa("public.pem",false);
+    RsaCrypto rsa("public.pem",false);
     Hash hash(T_SHA1);
     hash.addData(msg->data());
     bool b1 = rsa.rsaVerify(hash.result(), msg->sign());
@@ -64,6 +64,7 @@ string seckeyAgree(RequestMsg *msg)
         string randStr = getRandStr(16);
         // 2.通过公钥加密
         string secStr = rsa.rsaPubKeyEncrypt(randStr);
+        //写入到共享内存中
         cout<<"生成的随机密钥:"<<secStr<<endl;
         // 3.初始化回复的数据
         info.status = true;
@@ -71,10 +72,10 @@ string seckeyAgree(RequestMsg *msg)
         info.data = secStr;
         info.clientID = msg->clientid();
         info.serverID = msg->serverid();
+        //将生成的新密钥写入数据库
     }
     // 4.序列化
     RespondCodec codec(&info);
-
     string data = codec.encodeMsg();
     return data;
 }
@@ -111,7 +112,7 @@ void *connHandle(void *arg)
     return NULL;
 }
 
-int main()
+int _main()
 {
     //读配置文件获取配置信息
     ifstream ifs("../assets/server_assets.json");
@@ -126,6 +127,13 @@ int main()
 
     string serverID = root["ServerID"].asString();
     string port = root["Port"].asString();
+    //数据库相关信息
+    string UserDB=root["UserDB"].asString();
+    string PwdDB=root["PwdDB"].asString();
+    string ConnStrDB=root["ConnStrDB"].asString();
+    string DataSet=root["DataSet"].asString();
+    //实例化数据库操作
+    
     //启动服务器设置监听
     TcpServer *serv = new TcpServer;
     serv->setListen(atoi(port.data()));

@@ -25,7 +25,7 @@ int main()
     string serverProt = root["Port"].asString();
 
     //生成非对称加密密钥
-    Cryptographic crypto;
+    RsaCrypto crypto;
     //生成密钥
     crypto.generateRsakey(1024, "public.pem", "private.pem");
 
@@ -81,6 +81,7 @@ int main()
     //将得到的密文解密
     string key_rec=crypto.rsaPriKeyDecrypt(respMsg->data());
     cout<<"对称加密的密钥: "<< key_rec<<endl;
+    //写入到共享内存中 shm
 
     return 0;
 }

@@ -1,4 +1,8 @@
 {
     "ServerID":"luffy",
-    "Port":"1999"
+    "Port":"1999",
+    "UserDB":"root",
+    "PwdDB":"123456",
+    "ConnStrDB":"127.0.0.1",
+    "DataSet":"cs_crypto"
 }
