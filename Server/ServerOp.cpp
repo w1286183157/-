@@ -21,6 +21,10 @@ ServerOP::ServerOP(string json)
     m_dbConnStr = root["ConnStrDB"].asString();
     m_dbset = root["DataSet"].asString();
 
+    //实例化共享内存对象
+    string shmKey = root["ShmKey"].asString();
+    int maxNode = root["ShmMaxNode"].asInt();
+    m_shm = new SecKeyShm(shmKey, maxNode);
     // 实例化一个连接myslq数据的对象
     m_mysql.connectDB(m_dbUser, m_dbPwd, m_dbset, m_dbConnStr);
 }
@@ -55,22 +59,22 @@ void *ServerOP::working(void *arg)
 
 string ServerOP::seckeyAgree(RequestMsg *msg)
 {
-   RespondInfo info;
+    RespondInfo info;
     //密钥协商
     ofstream ofs("public.pem");
     assert(ofs.is_open());
     ofs << msg->data();
-    
+
     ofs.flush();
     ofs.close();
     cout << "文件写入成功" << endl;
 
     // 1 检验签名
-    RsaCrypto rsa("public.pem",false);
+    RsaCrypto rsa("public.pem", false);
     Hash hash(T_SHA1);
     hash.addData(msg->data());
     bool b1 = rsa.rsaVerify(hash.result(), msg->sign());
-    cout<<"签名验证结果 "<<b1<<endl;
+    cout << "签名验证结果 " << b1 << endl;
     if (!b1)
     {
         info.status = false;
@@ -83,27 +87,39 @@ string ServerOP::seckeyAgree(RequestMsg *msg)
         // 2.通过公钥加密
         string secStr = rsa.rsaPubKeyEncrypt(randStr);
         //写入到共享内存中
-        cout<<"生成的随机密钥:"<<secStr<<endl;
+        cout << "生成的随机密钥:" << secStr << endl;
         // 3.初始化回复的数据
         info.status = true;
-        info.seckeyID = 1;
+
         info.data = secStr;
         info.clientID = msg->clientid();
         info.serverID = msg->serverid();
         //将生成的新密钥写入数据库
         NodeSHMInfo node;
         strcpy(node.clientID, msg->clientid().data());
-		strcpy(node.serverID, msg->serverid().data());
-		strcpy(node.seckey, randStr.data());
-		node.seckeyID = m_mysql.getKeyID();	// 秘钥的ID
-		node.status = 1;
+        strcpy(node.serverID, msg->serverid().data());
+        strcpy(node.seckey, randStr.data());
+        node.seckeyID = m_mysql.getKeyID(); // 秘钥的ID
+        info.seckeyID = node.seckeyID;
+        
+        node.status = 1;
 
-        bool b=m_mysql.writeSecKey(&node);
-        if(b1){
+        bool b = m_mysql.writeSecKey(&node);
+        if (b1)
+        {
             //成功
-            m_mysql.updataKeyID(node.seckeyID+1);
-        }else{
-            info.status=false;
+            m_mysql.updataKeyID(node.seckeyID + 1);
+            //写共享内存
+            NodeSecKeyInfo secKeyInfo;
+            strcpy(secKeyInfo.clientID, msg->clientid().c_str());
+            strcpy(secKeyInfo.serverID, msg->serverid().c_str());
+            strcpy(secKeyInfo.seckey, randStr.data());
+            secKeyInfo.seckeyID = node.seckeyID;
+            m_shm->shmWrite(&secKeyInfo);
+        }
+        else
+        {
+            info.status = false;
         }
     }
     // 4.序列化
@@ -118,6 +134,7 @@ ServerOP::~ServerOP()
     {
         delete m_server;
     }
+    delete m_shm;
 }
 
 // 要求: 字符串中包含: a-z, A-Z, 0-9, 特殊字符

@@ -7,7 +7,7 @@
 #include "../factory/RequestCodec.h"
 #include "../factory/RespondCodec.h"
 
-int main()
+int _main()
 {
     //读取配置文件
     ifstream ifs("../assets/client_assets.json");

@@ -2,5 +2,7 @@
     "ServerID":"luffy",
     "ClientID":"robin",
     "ServerIP":"127.0.0.1",
-    "Port":"1999"
+    "Port":"1999",
+    "ShmKey":"/tmp",
+    "ShmMaxNode":1
 }
